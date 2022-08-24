@@ -18,14 +18,14 @@
     "doctrine/orm": "^2.5",
     "doctrine/doctrine-bundle": "^1.0 || ^2.0",
     "ramsey/uuid-doctrine": "^1.5",
-    "symfony/framework-bundle": "^4.4 || ^5.0",
-    "symfony/lock": "^4.4 || ^5.0",
-    "symfony/serializer": "^4.4 || ^5.0",
-    "symfony/messenger": "^4.4 || ^5.0",
-    "symfony/event-dispatcher": "^4.4 || ^5.0"
+    "symfony/framework-bundle": "^4.4 || ^5.0 || ^6.0",
+    "symfony/lock": "^4.4 || ^5.0 || ^6.0",
+    "symfony/serializer": "^4.4 || ^5.0 || ^6.0",
+    "symfony/messenger": "^4.4 || ^5.0 || ^6.0",
+    "symfony/event-dispatcher": "^4.4 || ^5.0 || ^6.0"
   },
   "require-dev": {
-    "symfony/phpunit-bridge": "^5.0",
+    "symfony/phpunit-bridge": "^5.0 || ^6.0",
     "symplify/easy-coding-standard": "^8.1",
     "nyholm/symfony-bundle-test": "^1.6"
   },
