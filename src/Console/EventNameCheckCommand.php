@@ -6,6 +6,7 @@ namespace Headsnet\DomainEventsBundle\Console;
 
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Headsnet\DomainEventsBundle\Domain\Model\StoredEvent;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,7 +21,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class EventNameCheckCommand extends Command
 {
-    private EntityManagerInterface $em;
+    private ManagerRegistry $managerRegistry;
 
     /**
      * @var array<string, string|null>
@@ -31,13 +32,15 @@ final class EventNameCheckCommand extends Command
 
     private bool $deleteUnfixable;
 
+    private EntityManagerInterface $em;
+
     /**
      * @param array<string, string> $legacyMap
      */
-    public function __construct(EntityManagerInterface $em, array $legacyMap)
+    public function __construct(ManagerRegistry $managerRegistry, array $legacyMap)
     {
         parent::__construct();
-        $this->em = $em;
+        $this->managerRegistry = $managerRegistry;
         $this->legacyMap = $legacyMap;
     }
 
@@ -55,6 +58,13 @@ final class EventNameCheckCommand extends Command
                 'd',
                 InputOption::VALUE_NONE,
                 'Remove events that cannot be fixed using the legacy_map. THIS IS A DESTRUCTIVE COMMAND!'
+            )
+            ->addOption(
+                'entity-manager',
+                'em',
+                InputOption::VALUE_REQUIRED,
+                'The entity manager to use for checking legacy events.',
+                'default'
             );
     }
 
@@ -62,6 +72,31 @@ final class EventNameCheckCommand extends Command
     {
         $this->io = new SymfonyStyle($input, $output);
         $this->deleteUnfixable = $input->getOption('delete');
+        
+        $entityManagerName = $input->getOption('entity-manager');
+        
+        try {
+            $entityManager = $this->managerRegistry->getManager($entityManagerName);
+            if (!$entityManager instanceof EntityManagerInterface) {
+                $this->io->error(sprintf('Entity manager "%s" is not an ORM entity manager.', $entityManagerName));
+                return Command::FAILURE;
+            }
+            $this->em = $entityManager;
+        } catch (\InvalidArgumentException $e) {
+            $this->io->error(sprintf('Entity manager "%s" does not exist.', $entityManagerName));
+            return Command::FAILURE;
+        }
+        
+        if (!$this->em->getMetadataFactory()->hasMetadataFor(StoredEvent::class)) {
+            $this->io->error(sprintf(
+                'Entity manager "%s" does not have StoredEvent mappings configured. ' .
+                'Cannot check for legacy events in this database.',
+                $entityManagerName
+            ));
+            return Command::FAILURE;
+        }
+        
+        $this->io->note(sprintf('Checking legacy events in entity manager: %s', $entityManagerName));
 
         if ($input->getOption('fix') && 0 === count($this->legacyMap)) {
             $this->showDefineLegacyMapErrorMessage();

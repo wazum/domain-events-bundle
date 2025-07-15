@@ -36,10 +36,11 @@
                  class="Headsnet\DomainEventsBundle\EventSubscriber\PublishDomainEventSubscriber"
                  public="false">
             <argument type="service" id="headsnet_domain_events.domain_event_dispatcher_service"/>
-            <argument type="service" id="headsnet_domain_events.repository.event_store_doctrine"/>
             <argument type="service" id="serializer"/>
             <argument type="service" id="headsnet_domain_events.lock_factory_service"/>
-            <argument type="service" id="doctrine.orm.default_entity_manager"/>
+            <argument type="service" id="doctrine"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument>%headsnet_domain_events.table_name%</argument>
             <tag name="kernel.event_subscriber"/>
         </service>
 
@@ -47,16 +48,23 @@
                  class="Headsnet\DomainEventsBundle\Doctrine\EventSubscriber\TableNameEventSubscriber"
                  public="false">
             <argument>%headsnet_domain_events.table_name%</argument>
-            <tag name="doctrine.event_listener" event="loadClassMetadata" connection="default"/>
+            <tag name="doctrine.event_listener" event="loadClassMetadata"/>
         </service>
 
         <service id="headsnet_domain_events.event_subscriber.persister"
                  class="Headsnet\DomainEventsBundle\Doctrine\EventSubscriber\PersistDomainEventSubscriber"
                  public="false">
-            <argument type="service" id="headsnet_domain_events.repository.event_store_doctrine"/>
-            <tag name="doctrine.event_listener" event="onFlush" connection="default" priority="10"/>
+            <argument type="service" id="serializer"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument>%headsnet_domain_events.table_name%</argument>
+            <tag name="doctrine.event_listener" event="onFlush" priority="10"/>
         </service>
 
+        <!-- 
+            DEPRECATED: This service is deprecated and will be removed in the next major version.
+            It only works with the default entity manager and does not support multi-entity manager setups.
+            Use EventStoreFactory instead.
+        -->
         <service id="headsnet_domain_events.repository.event_store_doctrine"
                  class="Headsnet\DomainEventsBundle\Doctrine\DoctrineEventStore"
                  public="false">
@@ -64,15 +72,32 @@
             <argument type="service" id="serializer"/>
             <argument type="service" id="event_dispatcher"/>
             <argument>%headsnet_domain_events.table_name%</argument>
+            <deprecated package="headsnet/domain-events-bundle" version="1.0">The "%service_id%" service is deprecated. Use EventStoreFactory instead.</deprecated>
         </service>
 
         <service id="Headsnet\DomainEventsBundle\Domain\Model\EventStore"
                  alias="headsnet_domain_events.repository.event_store_doctrine"
+        >
+            <deprecated package="headsnet/domain-events-bundle" version="1.0">The "%alias_id%" service is deprecated. Use EventStoreFactory instead.</deprecated>
+        </service>
+
+        <service id="headsnet_domain_events.event_store_factory"
+                 class="Headsnet\DomainEventsBundle\Doctrine\EventStoreFactory"
+                 public="true">
+            <argument type="service" id="doctrine"/>
+            <argument type="service" id="serializer"/>
+            <argument type="service" id="event_dispatcher"/>
+            <argument>%headsnet_domain_events.table_name%</argument>
+        </service>
+
+        <service id="Headsnet\DomainEventsBundle\Doctrine\EventStoreFactory"
+                 alias="headsnet_domain_events.event_store_factory"
+                 public="true"
         />
 
         <service id="headsnet_domain_events.event_check_command"
                  class="Headsnet\DomainEventsBundle\Console\EventNameCheckCommand">
-            <argument type="service" id="doctrine.orm.default_entity_manager"/>
+            <argument type="service" id="doctrine"/>
             <argument>%headsnet_domain_events.legacy_map%</argument>
             <tag name="console.command"/>
         </service>

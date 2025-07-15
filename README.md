@@ -235,6 +235,86 @@ transactions are committed.
 This prevents events from being published for data that might be rolled back,
 maintaining the integrity of the outbox pattern.
 
+### Multiple Entity Manager Support
+
+**Default Setup:** The bundle works out of the box with Doctrine's default entity manager configuration. No additional configuration is required for standard single-database applications.
+
+**Multi-Entity Manager Setup:** For advanced use cases like multi-tenant applications where each tenant has its own database, the bundle automatically supports multiple entity managers with zero additional configuration required.
+
+The bundle will automatically detect all entity managers that have `StoredEvent` mappings configured and process events from each database independently. Events are completely isolated between entity managers, ensuring no cross-tenant data leakage.
+
+**Key Features:**
+- Works out of the box with default Doctrine setup
+- Automatic detection of entity managers with event mappings
+- Complete event isolation between databases
+- Zero configuration required for multi-entity manager support
+- Works with any number of entity managers (see performance considerations below)
+
+**Example multi-tenant Doctrine configuration** (only required if you want multiple databases):
+```yaml
+doctrine:
+    dbal:
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+            tenant_a:
+                url: '%env(resolve:TENANT_A_DATABASE_URL)%'
+            tenant_b:
+                url: '%env(resolve:TENANT_B_DATABASE_URL)%'
+    orm:
+        default_entity_manager: default
+        entity_managers:
+            default:
+                connection: default
+                mappings:
+                    HeadsnetDomainEventsBundle:
+                        is_bundle: true
+                        type: xml
+                        prefix: 'Headsnet\DomainEventsBundle\Domain\Model'
+            tenant_a:
+                connection: tenant_a
+                mappings:
+                    HeadsnetDomainEventsBundle:
+                        is_bundle: true
+                        type: xml
+                        prefix: 'Headsnet\DomainEventsBundle\Domain\Model'
+            tenant_b:
+                connection: tenant_b
+                mappings:
+                    HeadsnetDomainEventsBundle:
+                        is_bundle: true
+                        type: xml
+                        prefix: 'Headsnet\DomainEventsBundle\Domain\Model'
+```
+
+**Performance Considerations:**
+- The bundle only processes entity managers that have `StoredEvent` mappings
+- Entity managers without event mappings are automatically skipped
+- For applications with many entity managers, consider the performance impact of checking all databases during event publishing
+
+**Deprecation Notice:**
+- The static `EventStore` service (`headsnet_domain_events.repository.event_store_doctrine`) is **deprecated** and will be removed in the next major version
+- This service only works with the default entity manager and does not support multi-entity manager setups
+- If you are injecting this service directly, use the new `EventStoreFactory` instead:
+
+```php
+// DEPRECATED - Don't do this:
+public function __construct(EventStore $eventStore) { ... }
+
+// RECOMMENDED - Use the factory service:
+use Headsnet\DomainEventsBundle\Doctrine\EventStoreFactory;
+
+public function __construct(EventStoreFactory $eventStoreFactory)
+{
+    // Create event store for default entity manager
+    $eventStore = $eventStoreFactory->create();
+    
+    // Or create for specific entity manager
+    $tenantEventStore = $eventStoreFactory->create('tenant_a');
+}
+```
+
 ### Legacy Events Classes
 
 During refactorings, you may well move or rename event classes. This will
@@ -246,6 +326,17 @@ Composer autoloading).
 
 ```
 bin/console headsnet:domain-events:name-check
+```
+
+**Multiple Entity Manager Support:** For applications using multiple entity managers, you can specify which entity manager to check using the `--entity-manager` option:
+
+```bash
+# Check default entity manager
+bin/console headsnet:domain-events:name-check
+
+# Check specific entity manager
+bin/console headsnet:domain-events:name-check --entity-manager=tenant_a
+bin/console headsnet:domain-events:name-check --entity-manager=tenant_b
 ```
 
 You can then define the `legacy_map` configuration parameter, to map old,
@@ -261,9 +352,19 @@ headsnet_domain_events:
 Then you can re-run the console command with the `--fix` option. This will
 then update the legacy class names in the database with their new references.
 
+```bash
+# Fix legacy events in specific entity manager
+bin/console headsnet:domain-events:name-check --fix --entity-manager=tenant_a
+```
+
 There is also a `--delete` option which will remove all legacy events from
 the database if they are not found in the legacy map. **THIS IS A DESTRUCTIVE
 COMMAND PLEASE USE WITH CAUTION.**
+
+```bash
+# Delete unfixable events from specific entity manager
+bin/console headsnet:domain-events:name-check --delete --entity-manager=tenant_a
+```
 
 ### Default Configuration
 

@@ -14,17 +14,27 @@ namespace Headsnet\DomainEventsBundle\Doctrine\EventSubscriber;
 
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\PersistentCollection;
+use Headsnet\DomainEventsBundle\Doctrine\DoctrineEventStore;
 use Headsnet\DomainEventsBundle\Domain\Model\ContainsEvents;
 use Headsnet\DomainEventsBundle\Domain\Model\EventStore;
 use Headsnet\DomainEventsBundle\Domain\Model\ReplaceableDomainEvent;
+use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class PersistDomainEventSubscriber
 {
-    private EventStore $eventStore;
+    private SerializerInterface $serializer;
+    private EventDispatcherInterface $eventDispatcher;
+    private string $tableName;
 
-    public function __construct(EventStore $eventStore)
-    {
-        $this->eventStore = $eventStore;
+    public function __construct(
+        SerializerInterface $serializer,
+        EventDispatcherInterface $eventDispatcher,
+        string $tableName
+    ) {
+        $this->serializer = $serializer;
+        $this->eventDispatcher = $eventDispatcher;
+        $this->tableName = $tableName;
     }
 
     public function onFlush(OnFlushEventArgs $args): void
@@ -34,7 +44,16 @@ class PersistDomainEventSubscriber
 
     private function persistEntityDomainEvents(OnFlushEventArgs $args): void
     {
-        $uow = $args->getObjectManager()->getUnitOfWork();
+        $entityManager = $args->getObjectManager();
+        $uow = $entityManager->getUnitOfWork();
+
+        // Create a dynamic event store for this entity manager
+        $eventStore = new DoctrineEventStore(
+            $entityManager,
+            $this->serializer,
+            $this->eventDispatcher,
+            $this->tableName
+        );
 
         $sources = [
             $uow->getScheduledEntityInsertions(),
@@ -48,7 +67,7 @@ class PersistDomainEventSubscriber
                     continue;
                 }
 
-                $this->storeRecordedEvents($entity);
+                $this->storeRecordedEvents($entity, $eventStore);
             }
         }
 
@@ -64,18 +83,18 @@ class PersistDomainEventSubscriber
                     continue;
                 }
 
-                $this->storeRecordedEvents($entity);
+                $this->storeRecordedEvents($entity, $eventStore);
             }
         }
     }
 
-    private function storeRecordedEvents(ContainsEvents $entity): void
+    private function storeRecordedEvents(ContainsEvents $entity, EventStore $eventStore): void
     {
         foreach ($entity->getRecordedEvents() as $domainEvent) {
             if ($domainEvent instanceof ReplaceableDomainEvent) {
-                $this->eventStore->replace($domainEvent);
+                $eventStore->replace($domainEvent);
             } else {
-                $this->eventStore->append($domainEvent);
+                $eventStore->append($domainEvent);
             }
         }
 
