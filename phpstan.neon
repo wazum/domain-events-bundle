@@ -16,4 +16,3 @@ parameters:
     ignoreErrors:
         -
           identifier: missingType.generics
-        - '#Class Doctrine\\DBAL\\Platforms\\PostgreSqlPlatform not found#'
