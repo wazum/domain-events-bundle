@@ -14,7 +14,7 @@ namespace Headsnet\DomainEventsBundle\Doctrine\DBAL\Types;
 
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
-use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\ConversionException;
 use Doctrine\DBAL\Types\VarDateTimeImmutableType;
 
@@ -40,9 +40,9 @@ class DateTimeImmutableMicrosecondsType extends VarDateTimeImmutableType
     public function convertToDatabaseValue($value, AbstractPlatform $platform): ?string
     {
         if ($value instanceof \DateTimeImmutable &&
-            ($platform instanceof PostgreSqlPlatform || $platform instanceof MySQLPlatform)
+            ($platform instanceof PostgreSQLPlatform || $platform instanceof MySQLPlatform)
         ) {
-            $dateTimeFormat = $platform->getDateTimeFormatString(); // @phpstan-ignore-line
+            $dateTimeFormat = $platform->getDateTimeFormatString();
 
             return $value->format("{$dateTimeFormat}.u");
         }
