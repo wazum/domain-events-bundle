@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Headsnet\DomainEventsBundle\Console;
 
-use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\EntityManagerInterface;
 use Headsnet\DomainEventsBundle\Domain\Model\StoredEvent;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -103,7 +102,7 @@ final class EventNameCheckCommand extends Command
             ])
             ->from(StoredEvent::class, 'event')
             ->groupBy('event.typeName')
-            ->orderBy('event.typeName', Criteria::ASC)
+            ->orderBy('event.typeName', 'ASC')
             ->getQuery()
             ->getResult();
 
